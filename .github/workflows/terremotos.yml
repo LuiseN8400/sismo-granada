@@ -1,0 +1,62 @@
+name: Monitor de Terremotos Granada
+
+on:
+  schedule:
+    # -----------------------------------------------------------------------------------
+    # FRECUENCIA DE EJECUCIÓN PROGRAMADA (CRON):
+    # -----------------------------------------------------------------------------------
+    # • Repositorio PÚBLICO: Los minutos son ILIMITADOS y 100% GRATIS. Puedes usar '*/5 * * * *'.
+    # • Repositorio PRIVADO: Tienes 2.000 min/mes. '*/15 * * * *' o '*/30 * * * *' ahorra cuota.
+    # -----------------------------------------------------------------------------------
+    - cron: '*/15 * * * *'
+
+  # Permite ejecución manual bajo demanda (desde GitHub o desde la PWA en el iPhone)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: terremotos-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitorizar:
+    name: Comprobar Sismicidad IGN y Alertar
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 📥 Clonar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 🔍 Ejecutar Motor de Detección de Terremotos
+        env:
+          PHONE_NUMBER: ${{ secrets.PHONE_NUMBER }}
+          CALLMEBOT_API_KEY: ${{ secrets.CALLMEBOT_API_KEY }}
+        run: |
+          python check_terremotos.py
+
+      - name: 💾 Actualizar caché seen_events.json en Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Asegurar que sincronizamos antes de hacer push por si el usuario guardó config.json desde la PWA
+          git pull --rebase origin ${{ github.ref_name }} || true
+          
+          if [ -n "$(git status --porcelain seen_events.json)" ]; then
+            echo "📝 Nuevos sismos detectados. Guardando caché en el repositorio..."
+            git add seen_events.json
+            git commit -m "chore(cache): actualizar sismos procesados [skip ci]"
+            git push origin ${{ github.ref_name }}
+          else
+            echo "✨ Sin cambios en la caché de eventos. No es necesario realizar commit."
+          fi

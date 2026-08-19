@@ -1,0 +1,18 @@
+# Entorno y variables secretas
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs y PIDs
+*.log
+*.pid
+scratch/
+logs/
+remote_web/
+gemini_*.py
+manage_daemons.py
+run_single_test.py
