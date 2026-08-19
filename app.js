@@ -14,7 +14,32 @@ const GRANADA_COORDS = [37.1773, -3.5986];
 // Endpoints oficiales con proxies de alta disponibilidad
 const EMSC_URL = "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&lat=37.1773&lon=-3.5986&maxradius=3.5&minmag=1.0&limit=60";
 const IGN_RSS_PROXY = "https://corsproxy.io/?url=" + encodeURIComponent("https://www.ign.es/ign/RssTools/sismologia.xml");
-const USGS_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=37.1773&longitude=-3.5986&maxradiuskm=350&minmagnitude=1.0";
+
+// Municipios del entorno de Granada para geolocalización precisa
+const GRANADA_TOWNS = [
+  { name: "Granada Capital", lat: 37.1773, lon: -3.5986 },
+  { name: "Armilla", lat: 37.1415, lon: -3.6285 },
+  { name: "Churriana de la Vega", lat: 37.1482, lon: -3.6441 },
+  { name: "Alhendín", lat: 37.1086, lon: -3.6457 },
+  { name: "Las Gabias", lat: 37.1353, lon: -3.6687 },
+  { name: "Ogíjares", lat: 37.1197, lon: -3.6083 },
+  { name: "Gójar", lat: 37.1044, lon: -3.6006 },
+  { name: "La Zubia", lat: 37.1206, lon: -3.5852 },
+  { name: "Villa de Otura", lat: 37.0944, lon: -3.6333 },
+  { name: "Cúllar Vega", lat: 37.1531, lon: -3.6708 },
+  { name: "Vegas del Genil", lat: 37.1714, lon: -3.6744 },
+  { name: "Santa Fe", lat: 37.1894, lon: -3.7183 },
+  { name: "Atarfe", lat: 37.2222, lon: -3.6872 },
+  { name: "Albolote", lat: 37.2306, lon: -3.6561 },
+  { name: "Maracena", lat: 37.2075, lon: -3.6339 },
+  { name: "Peligros", lat: 37.2322, lon: -3.6278 },
+  { name: "Huétor Vega", lat: 37.1458, lon: -3.5786 },
+  { name: "Cájar", lat: 37.1344, lon: -3.5708 },
+  { name: "Monachil", lat: 37.1319, lon: -3.5392 },
+  { name: "Dílar", lat: 37.0750, lon: -3.6014 },
+  { name: "Padul", lat: 37.0242, lon: -3.6267 },
+  { name: "Dúrcal", lat: 36.9886, lon: -3.5658 }
+];
 
 // Estado global de la aplicación
 const AppState = {
@@ -31,18 +56,18 @@ const AppState = {
     token: ""
   },
   configSha: null,
-  filterOnlyRadius: true, // FILTRAR POR DEFECTO A GRANADA Y ALREDEDORES
+  filterOnlyRadius: true, // Por defecto mostrar sólo Granada y alrededores
   map: null,
   granadaCircle: null,
   quakeLayerGroup: null,
-  activeTab: "tab-list" // Pestaña de lista por defecto
+  activeTab: "tab-list"
 };
 
 // =============================================================================
-// CÁLCULO DE HAVERSINE Y UTILIDADES
+// CÁLCULO DE HAVERSINE Y UTILIDADES GEOGRÁFICAS
 // =============================================================================
 function calcularHaversine(lat1, lon1, lat2, lon2) {
-  const R = 6371.0; // Radio de la Tierra en km
+  const R = 6371.0;
   const dLat = (lat2 - lat1) * Math.PI / 180.0;
   const dLon = (lon2 - lon1) * Math.PI / 180.0;
   const a =
@@ -53,28 +78,39 @@ function calcularHaversine(lat1, lon1, lat2, lon2) {
   return parseFloat((R * c).toFixed(1));
 }
 
-function parseSpanishDateToTimestamp(dateStr) {
-  // Formato esperado: "19/08/2026 17:14:51" o ISO "2026-08-19T17:14:51Z"
-  if (!dateStr) return 0;
-  if (dateStr.includes("/")) {
-    try {
-      const [datePart, timePart] = dateStr.split(" ");
-      const [day, month, year] = datePart.split("/").map(Number);
-      const [hour, minute, second] = (timePart || "00:00:00").split(":").map(Number);
-      return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
-    } catch (e) {
-      return 0;
+function resolverMunicipioCercano(lat, lon, fallbackPlace = "") {
+  let closest = null;
+  let minD = 999999;
+  for (const t of GRANADA_TOWNS) {
+    const d = calcularHaversine(lat, lon, t.lat, t.lon);
+    if (d < minD) {
+      minD = d;
+      closest = t;
     }
   }
-  const t = new Date(dateStr).getTime();
-  return isNaN(t) ? 0 : t;
+
+  if (closest && minD < 3.5) {
+    return `${closest.name} (Granada)`;
+  } else if (closest && minD < 18.0) {
+    const dlat = lat - closest.lat;
+    const dlon = lon - closest.lon;
+    let card = "";
+    if (dlat > 0.01) card += "Norte";
+    else if (dlat < -0.01) card += "Sur";
+    if (dlon > 0.01) card += (!card ? "Este" : "-este");
+    else if (dlon < -0.01) card += (!card ? "Oeste" : "-oeste");
+
+    const pref = card ? `Entorno ${card} de ` : "Cerca de ";
+    return `${pref}${closest.name} (Granada)`;
+  }
+
+  return formatPlaceName(fallbackPlace || "Provincia de Granada");
 }
 
 function formatPlaceName(rawPlace) {
   if (!rawPlace) return "Entorno de Granada";
   let p = rawPlace.trim();
 
-  // Expansión de siglas de provincias y países
   p = p.replace(/\.GR\b/g, " (Granada)");
   p = p.replace(/\.AL\b/g, " (Almería)");
   p = p.replace(/\.MA\b/g, " (Málaga)");
@@ -88,7 +124,6 @@ function formatPlaceName(rawPlace) {
   p = p.replace(/\.POR\b/g, " (Portugal)");
   p = p.replace(/\.MAR\b/g, " (Marruecos)");
 
-  // Expansión de direcciones cardinales
   p = p.replace(/^NE\s+/i, "Noreste de ");
   p = p.replace(/^NW\s+/i, "Noroeste de ");
   p = p.replace(/^SE\s+/i, "Sureste de ");
@@ -105,6 +140,22 @@ function formatPlaceName(rawPlace) {
   p = p.replace(/^W\s+/i, "Oeste de ");
 
   return p;
+}
+
+function parseSpanishDateToTimestamp(dateStr) {
+  if (!dateStr) return 0;
+  if (dateStr.includes("/")) {
+    try {
+      const [datePart, timePart] = dateStr.split(" ");
+      const [day, month, year] = datePart.split("/").map(Number);
+      const [hour, minute, second] = (timePart || "00:00:00").split(":").map(Number);
+      return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
+    } catch (e) {
+      return 0;
+    }
+  }
+  const t = new Date(dateStr).getTime();
+  return isNaN(t) ? 0 : t;
 }
 
 // =============================================================================
@@ -148,7 +199,6 @@ function initMap() {
     maxZoom: 19
   }).addTo(AppState.map);
 
-  // Marcador de Granada capital
   const granadaIcon = L.divIcon({
     className: "granada-marker",
     html: `<div style="background: #0a84ff; width: 14px; height: 14px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px #0a84ff;"></div>`,
@@ -160,7 +210,6 @@ function initMap() {
     .addTo(AppState.map)
     .bindPopup(`<strong>📍 Granada Capital</strong><br>Centro de monitorización sísmica`);
 
-  // Círculo del radio de cobertura
   AppState.granadaCircle = L.circle(GRANADA_COORDS, {
     color: "#0a84ff",
     fillColor: "#0a84ff",
@@ -239,6 +288,7 @@ function parseIGNRSS(xmlText) {
         fechaHora,
         timestamp,
         distancia: dist,
+        fuente: "IGN",
         link: link || `http://www.ign.es/web/ign/portal/sis-catalogo-terremotos/-/catalogo-terremotos/detailTerremoto?evid=${eventId}`
       });
     });
@@ -262,14 +312,12 @@ function parseEMSCGeoJSON(data) {
       const depth = Math.abs(coords[2] || props.depth || 0);
       const mag = parseFloat(props.mag || 0);
       
-      let place = props.flynn_region || "Andalucía";
-      if (place === "SPAIN") place = "Entorno de Granada";
-
-      let fechaHora = props.time || "";
+      const rawTime = props.time || "";
       let timestamp = 0;
-      if (fechaHora) {
+      let fechaHora = "";
+      if (rawTime) {
         try {
-          const d = new Date(fechaHora);
+          const d = new Date(rawTime);
           timestamp = d.getTime();
           fechaHora = d.toLocaleDateString("es-ES", { day: '2-digit', month: '2-digit', year: 'numeric' }) + " " +
                       d.toLocaleTimeString("es-ES", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -278,6 +326,7 @@ function parseEMSCGeoJSON(data) {
 
       const id = props.unid || props.source_id || feat.id || `${lat}_${lon}`;
       const dist = calcularHaversine(GRANADA_COORDS[0], GRANADA_COORDS[1], lat, lon);
+      const place = resolverMunicipioCercano(lat, lon, props.flynn_region);
 
       return {
         id,
@@ -285,11 +334,12 @@ function parseEMSCGeoJSON(data) {
         lon,
         mag,
         depth: parseFloat(depth.toFixed(1)),
-        place: formatPlaceName(place),
-        rawPlace: place,
+        place,
+        rawPlace: props.flynn_region || place,
         fechaHora,
         timestamp,
         distancia: dist,
+        fuente: props.auth || "EMSC",
         link: `https://www.emsc-csem.org/Earthquake/earthquake.php?id=${feat.id || id}`
       };
     });
@@ -307,7 +357,7 @@ async function cargarDatosSismicos() {
   let ignEvents = [];
   let emscEvents = [];
 
-  // Peticiones paralelas para máxima velocidad
+  // Peticiones paralelas a fuentes de alta velocidad
   const [ignPromise, emscPromise] = [
     fetch(IGN_RSS_PROXY, { signal: AbortSignal.timeout(5000) })
       .then(r => r.ok ? r.text() : "")
@@ -323,38 +373,47 @@ async function cargarDatosSismicos() {
   if (results[0].status === "fulfilled") ignEvents = results[0].value;
   if (results[1].status === "fulfilled") emscEvents = results[1].value;
 
-  // Mapa de profundidades exactas de EMSC indexadas por cercanía espacial/temporal
-  const depthMap = new Map();
+  // Fusión inteligente: Unir todos los sismos y deduplicar por cercanía espaciotemporal
+  const merged = [];
+  const processedKeys = new Set();
+
+  // 1. Añadir sismos de EMSC (que incluye todos los microseísmos en vivo de esta tarde)
   emscEvents.forEach(e => {
-    const key = `${e.lat.toFixed(2)}_${e.lon.toFixed(2)}`;
-    if (e.depth > 0) depthMap.set(key, e.depth);
+    // Clave de proximidad (redondeo a 1 decimal y ventana de 5 minutos)
+    const timeSlot = Math.floor(e.timestamp / 300000);
+    const key = `${e.lat.toFixed(2)}_${e.lon.toFixed(2)}_${timeSlot}`;
+    if (!processedKeys.has(key)) {
+      processedKeys.add(key);
+      merged.push(e);
+    }
   });
 
-  let combined = [];
-
-  if (ignEvents.length > 0) {
-    // Si tenemos datos del IGN, enriquecer con profundidad exacta de EMSC si falta
-    combined = ignEvents.map(ev => {
-      const key = `${ev.lat.toFixed(2)}_${ev.lon.toFixed(2)}`;
-      if ((!ev.depth || ev.depth === 0) && depthMap.has(key)) {
-        ev.depth = depthMap.get(key);
+  // 2. Añadir sismos de IGN RSS (si no estaban ya por coincidencia)
+  ignEvents.forEach(e => {
+    const timeSlot = Math.floor(e.timestamp / 300000);
+    const key = `${e.lat.toFixed(2)}_${e.lon.toFixed(2)}_${timeSlot}`;
+    if (!processedKeys.has(key)) {
+      processedKeys.add(key);
+      merged.push(e);
+    } else {
+      // Si ya existía, usar el nombre específico de municipio que da el IGN si es más detallado
+      const existing = merged.find(m => Math.abs(m.timestamp - e.timestamp) < 300000 && calcularHaversine(m.lat, m.lon, e.lat, e.lon) < 5);
+      if (existing && e.place && e.place.includes("(Granada)")) {
+        existing.place = e.place;
       }
-      return ev;
-    });
-  } else if (emscEvents.length > 0) {
-    combined = emscEvents;
-  }
+    }
+  });
 
-  if (combined.length > 0) {
+  if (merged.length > 0) {
     // Ordenar estrictamente por fecha descendente (más nuevo arriba)
-    combined.sort((a, b) => b.timestamp - a.timestamp);
-    AppState.quakes = combined;
+    merged.sort((a, b) => b.timestamp - a.timestamp);
+    AppState.quakes = merged;
     actualizarUIConSismos();
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (badge) badge.textContent = `Actualizado: ${timeStr}`;
-    showToast(`Actualizados ${combined.length} sismos en tiempo real`, "success", 2000);
+    showToast(`Actualizados ${merged.length} sismos en tiempo real`, "success", 2000);
   } else {
     if (badge) badge.textContent = "Reintentando...";
   }
@@ -853,6 +912,5 @@ document.addEventListener("DOMContentLoaded", () => {
   cargarDatosSismicos();
   registerServiceWorker();
 
-  // Auto-refresco cada 45 segundos en la PWA mientras esté abierta
-  setInterval(cargarDatosSismicos, 45000);
+  setInterval(cargarDatosSismicos, 30000);
 });

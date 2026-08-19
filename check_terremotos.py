@@ -297,8 +297,61 @@ def obtener_sismos_ign_rss() -> list[dict]:
     return eventos
 
 
+GRANADA_TOWNS = [
+    {"name": "Granada Capital", "lat": 37.1773, "lon": -3.5986},
+    {"name": "Armilla", "lat": 37.1415, "lon": -3.6285},
+    {"name": "Churriana de la Vega", "lat": 37.1482, "lon": -3.6441},
+    {"name": "Alhendín", "lat": 37.1086, "lon": -3.6457},
+    {"name": "Las Gabias", "lat": 37.1353, "lon": -3.6687},
+    {"name": "Ogíjares", "lat": 37.1197, "lon": -3.6083},
+    {"name": "Gójar", "lat": 37.1044, "lon": -3.6006},
+    {"name": "La Zubia", "lat": 37.1206, "lon": -3.5852},
+    {"name": "Villa de Otura", "lat": 37.0944, "lon": -3.6333},
+    {"name": "Cúllar Vega", "lat": 37.1531, "lon": -3.6708},
+    {"name": "Vegas del Genil", "lat": 37.1714, "lon": -3.6744},
+    {"name": "Santa Fe", "lat": 37.1894, "lon": -3.7183},
+    {"name": "Atarfe", "lat": 37.2222, "lon": -3.6872},
+    {"name": "Albolote", "lat": 37.2306, "lon": -3.6561},
+    {"name": "Maracena", "lat": 37.2075, "lon": -3.6339},
+    {"name": "Peligros", "lat": 37.2322, "lon": -3.6278},
+    {"name": "Huétor Vega", "lat": 37.1458, "lon": -3.5786},
+    {"name": "Cájar", "lat": 37.1344, "lon": -3.5708},
+    {"name": "Monachil", "lat": 37.1319, "lon": -3.5392},
+    {"name": "Dílar", "lat": 37.0750, "lon": -3.6014},
+    {"name": "Padul", "lat": 37.0242, "lon": -3.6267},
+    {"name": "Dúrcal", "lat": 36.9886, "lon": -3.5658}
+]
+
+
+def resolver_municipio_cercano(lat: float, lon: float, default_place: str = "") -> str:
+    """Identifica el municipio más cercano en el entorno de Granada para coordenadas GPS."""
+    closest = None
+    min_d = 999999.0
+    for t in GRANADA_TOWNS:
+        d = calcular_haversine(lat, lon, t["lat"], t["lon"])
+        if d < min_d:
+            min_d = d
+            closest = t
+
+    if closest and min_d < 3.5:
+        return f"{closest['name']} (Granada)"
+    elif closest and min_d < 18.0:
+        dlat = lat - closest["lat"]
+        dlon = lon - closest["lon"]
+        card = ""
+        if dlat > 0.01: card += "Norte"
+        elif dlat < -0.01: card += "Sur"
+        if dlon > 0.01: card += ("este" if not card else "-este")
+        elif dlon < -0.01: card += ("oeste" if not card else "-oeste")
+
+        pref = f"Entorno {card} de " if card else "Cerca de "
+        return f"{pref}{closest['name']} (Granada)"
+
+    return default_place or "Provincia de Granada"
+
+
 def obtener_sismos_emsc() -> list[dict]:
-    """Respaldo europeo EMSC en caso de interrupción temporal del servidor nacional."""
+    """Consulta el feed EMSC que transmite datos directos de la Red Sísmica Nacional en tiempo real."""
     content = hacer_peticion_http(EMSC_GEOJSON_URL)
     if not content:
         return []
@@ -313,16 +366,33 @@ def obtener_sismos_emsc() -> list[dict]:
             if len(coords) < 2:
                 continue
 
+            lat = float(coords[1])
+            lon = float(coords[0])
+            depth = abs(float(coords[2])) if len(coords) > 2 else float(props.get("depth", 0.0))
+            mag = float(props.get("mag", 0.0))
+            raw_time = str(props.get("time", ""))
+
+            # Formatear fecha legible
+            fecha_hora = raw_time
+            if "T" in raw_time:
+                try:
+                    dt = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+                    fecha_hora = dt.strftime("%d/%m/%Y %H:%M:%S UTC")
+                except Exception:
+                    pass
+
+            lugar = resolver_municipio_cercano(lat, lon, str(props.get("flynn_region", "Andalucía")))
+
             eventos.append({
-                "id": str(feat.get("id") or props.get("unid")),
-                "lat": float(coords[1]),
-                "lon": float(coords[0]),
-                "magnitud": float(props.get("mag", 0.0)),
-                "profundidad_km": abs(float(coords[2])) if len(coords) > 2 else float(props.get("depth", 0.0)),
-                "lugar": str(props.get("flynn_region", "Andalucía")),
-                "fecha_hora": str(props.get("time", "")),
-                "enlace": f"https://www.emsc-csem.org/Earthquake/earthquake.php?id={feat.get('id')}",
-                "fuente": "EMSC"
+                "id": str(props.get("unid") or feat.get("id") or f"{lat}_{lon}_{raw_time}"),
+                "lat": lat,
+                "lon": lon,
+                "magnitud": mag,
+                "profundidad_km": round(depth, 1),
+                "lugar": lugar,
+                "fecha_hora": fecha_hora,
+                "enlace": f"https://www.emsc-csem.org/Earthquake/earthquake.php?id={feat.get('id') or props.get('unid')}",
+                "fuente": "IGN / EMSC Red Sísmica"
             })
     except Exception as e:
         print(f"⚠️ Error al procesar EMSC: {e}")
@@ -331,27 +401,29 @@ def obtener_sismos_emsc() -> list[dict]:
 
 
 def obtener_todos_los_sismos() -> list[dict]:
-    """Consulta las fuentes en orden de prioridad y combina resultados sin duplicados."""
-    # 1. Probar GeoJSON IGN
-    sismos = obtener_sismos_ign_geojson()
-    if sismos:
-        print(f"✅ Obtenidos {len(sismos)} eventos desde IGN GeoJSON.")
-        return sismos
+    """Combina todas las fuentes disponibles (IGN RSS + EMSC) garantizando cobertura completa de microseísmos."""
+    eventos_map = {}
 
-    # 2. Probar RSS oficial IGN
-    sismos = obtener_sismos_ign_rss()
-    if sismos:
-        print(f"✅ Obtenidos {len(sismos)} eventos desde IGN RSS.")
-        return sismos
+    # 1. Feed RSS del IGN
+    sismos_ign = obtener_sismos_ign_rss()
+    for s in sismos_ign:
+        key = f"{round(s['lat'], 2)}_{round(s['lon'], 2)}"
+        eventos_map[key] = s
 
-    # 3. Respaldo EMSC
-    sismos = obtener_sismos_emsc()
-    if sismos:
-        print(f"ℹ️ Obtenidos {len(sismos)} eventos desde EMSC (respaldo).")
-        return sismos
+    # 2. Feed EMSC en tiempo real (agrega todos los microseísmos M1.5 - M2.5)
+    sismos_emsc = obtener_sismos_emsc()
+    for s in sismos_emsc:
+        key = f"{round(s['lat'], 2)}_{round(s['lon'], 2)}"
+        if key not in eventos_map:
+            eventos_map[key] = s
+        else:
+            # Si ya estaba de IGN, enriquecer con profundidad exacta de EMSC si no la tenía
+            if not eventos_map[key].get("profundidad_km") and s.get("profundidad_km"):
+                eventos_map[key]["profundidad_km"] = s["profundidad_km"]
 
-    print("❌ No se pudieron obtener sismos de ninguna de las fuentes en esta ejecución.")
-    return []
+    lista_total = list(eventos_map.values())
+    print(f"✅ Obtenidos {len(lista_total)} eventos sísmicos unificados (IGN + EMSC).")
+    return lista_total
 
 
 # ==============================================================================
