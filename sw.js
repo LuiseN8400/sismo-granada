@@ -4,7 +4,7 @@
  * Proporciona soporte offline para activos estáticos (HTML, CSS, JS, Iconos).
  */
 
-const CACHE_NAME = "sismogranada-v1";
+const CACHE_NAME = "sismogranada-v2";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

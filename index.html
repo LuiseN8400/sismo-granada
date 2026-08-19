@@ -47,9 +47,9 @@
     <!-- Control Segmentado (Tabs) -->
     <div class="segmented-control-container">
       <div class="segmented-control" role="tablist">
-        <button class="segment-btn active" data-tab="tab-map" role="tab">🗺️ Mapa</button>
+        <button class="segment-btn active" data-tab="tab-list" role="tab">📋 Lista (<span id="quakeCountBadge">0</span>)</button>
+        <button class="segment-btn" data-tab="tab-map" role="tab">🗺️ Mapa</button>
         <button class="segment-btn" data-tab="tab-config" role="tab">⚙️ Ajustes</button>
-        <button class="segment-btn" data-tab="tab-list" role="tab">📋 Lista (<span id="quakeCountBadge">0</span>)</button>
       </div>
     </div>
 
@@ -77,8 +77,28 @@
       </div>
     </div>
 
-    <!-- TAB 1: MAPA EN VIVO -->
-    <div class="tab-view active" id="tab-map">
+    <!-- TAB 1: LISTA DE SISMOS (PREDETERMINADA) -->
+    <div class="tab-view active" id="tab-list">
+      <div class="ios-card" style="padding: 12px 16px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" id="listFilterLabel">Sismos recientes:</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="meta-chip active" id="btnFilterAll" style="border: none; cursor: pointer;">Todos</button>
+            <button class="meta-chip" id="btnFilterRadius" style="border: none; cursor: pointer;">En Radio (≤ <span id="txtFilterRadiusBadge">60</span> km)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="quake-list" id="quakeListContainer">
+        <!-- Tarjetas dinámicas de terremotos -->
+        <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
+          <p>⏳ Conectando con la Red Sísmica en tiempo real...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: MAPA EN VIVO -->
+    <div class="tab-view" id="tab-map">
       <div class="map-container-wrapper">
         <div class="map-overlay-badge" id="mapStatusBadge">📍 Granada: Lat 37.1773, Lon -3.5986</div>
         <div id="map"></div>
@@ -86,7 +106,7 @@
 
       <div class="ios-card">
         <div class="card-title">
-          <span>🎯 Filtro Rápido del Visor</span>
+          <span>🎯 Cobertura en el Mapa</span>
           <span style="font-size: 12px; color: var(--text-secondary);" id="lastSyncTime">Actualizado: --</span>
         </div>
         <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
@@ -162,26 +182,6 @@
           <div>• <strong>Repositorio:</strong> <span id="lblRepoTarget">No configurado</span></div>
           <div>• <strong>Rama:</strong> <span id="lblBranchTarget">main</span></div>
           <div>• <strong>Último SHA de config.json:</strong> <span id="lblShaTarget" style="font-family: monospace;">--</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 3: LISTA DE SISMOS -->
-    <div class="tab-view" id="tab-list">
-      <div class="ios-card" style="padding: 12px 16px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Filtrar lista:</span>
-          <div style="display: flex; gap: 8px;">
-            <button class="meta-chip active" id="btnFilterAll" style="border: none; cursor: pointer;">Todos</button>
-            <button class="meta-chip" id="btnFilterRadius" style="border: none; cursor: pointer;">Solo en Radio</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="quake-list" id="quakeListContainer">
-        <!-- Tarjetas dinámicas de terremotos -->
-        <div style="text-align: center; padding: 40px 0; color: var(--text-secondary);">
-          <p>Cargando información sísmica del IGN...</p>
         </div>
       </div>
     </div>
