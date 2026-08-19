@@ -102,6 +102,7 @@ def cargar_configuracion() -> dict:
     default_config = {
         "radio_km": 60,
         "magnitud_min": 1.5,
+        "frecuencia_minutos": 5,
         "notificar_whatsapp": True,
     }
 
@@ -115,6 +116,7 @@ def cargar_configuracion() -> dict:
             return {
                 "radio_km": float(cfg.get("radio_km", 60)),
                 "magnitud_min": float(cfg.get("magnitud_min", 1.5)),
+                "frecuencia_minutos": int(cfg.get("frecuencia_minutos", 5)),
                 "notificar_whatsapp": bool(cfg.get("notificar_whatsapp", True)),
             }
     except Exception as e:

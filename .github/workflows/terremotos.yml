@@ -8,7 +8,7 @@ on:
     # • Repositorio PÚBLICO: Los minutos son ILIMITADOS y 100% GRATIS. Puedes usar '*/5 * * * *'.
     # • Repositorio PRIVADO: Tienes 2.000 min/mes. '*/15 * * * *' o '*/30 * * * *' ahorra cuota.
     # -----------------------------------------------------------------------------------
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'
 
   # Permite ejecución manual bajo demanda (desde GitHub o desde la PWA en el iPhone)
   workflow_dispatch:

@@ -1,5 +1,6 @@
 {
   "radio_km": 60,
   "magnitud_min": 1.5,
+  "frecuencia_minutos": 5,
   "notificar_whatsapp": true
 }

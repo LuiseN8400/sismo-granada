@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
-  <link rel="stylesheet" href="styles.css?v=20260819_06">
+  <link rel="stylesheet" href="styles.css?v=20260820_08">
 </head>
 <body>
 
@@ -150,6 +150,24 @@
           </div>
         </div>
 
+        <!-- Selector de Frecuencia de Notificación -->
+        <div class="control-group">
+          <div class="control-header">
+            <span class="control-label">⏱️ Frecuencia de Alertas en 2° Plano</span>
+            <span class="control-badge-val" id="valFreqBadge" style="background: var(--accent-purple, #bf5af2);">5 min</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
+            Cada cuánto tiempo el servidor comprueba sismos y envía WhatsApp automáticamente.
+          </p>
+          <div class="freq-selector-grid" id="freqSelectorContainer">
+            <button type="button" class="freq-btn active" data-freq="5">5 min ⚡</button>
+            <button type="button" class="freq-btn" data-freq="10">10 min</button>
+            <button type="button" class="freq-btn" data-freq="15">15 min</button>
+            <button type="button" class="freq-btn" data-freq="30">30 min</button>
+            <button type="button" class="freq-btn" data-freq="60">1 hora</button>
+          </div>
+        </div>
+
         <!-- Switch Notificaciones WhatsApp -->
         <div class="switch-row">
           <div class="switch-info">
@@ -230,6 +248,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260819_06"></script>
+  <script src="app.js?v=20260820_08"></script>
 </body>
 </html>

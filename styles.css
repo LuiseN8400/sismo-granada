@@ -627,6 +627,39 @@ input:checked + .slider-switch:before {
   font-weight: 600;
 }
 
+/* Selector de Frecuencia */
+.freq-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.freq-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.freq-btn:active {
+  transform: scale(0.96);
+}
+
+.freq-btn.active {
+  background: var(--accent-purple, #bf5af2) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(191, 90, 242, 0.35);
+}
+
+
 
 /* Modal Drawer iOS */
 .modal-overlay {

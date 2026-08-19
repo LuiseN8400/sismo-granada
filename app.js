@@ -47,6 +47,7 @@ const AppState = {
   config: {
     radio_km: 60,
     magnitud_min: 1.5,
+    frecuencia_minutos: 5,
     notificar_whatsapp: true
   },
   github: {
@@ -652,6 +653,7 @@ async function loadConfigFromGitHub() {
 function applyConfigToUI(cfg) {
   AppState.config.radio_km = parseFloat(cfg.radio_km || 60);
   AppState.config.magnitud_min = parseFloat(cfg.magnitud_min || 1.5);
+  AppState.config.frecuencia_minutos = parseInt(cfg.frecuencia_minutos || 5);
   AppState.config.notificar_whatsapp = cfg.notificar_whatsapp !== undefined ? cfg.notificar_whatsapp : true;
 
   document.getElementById("rangeRadio").value = AppState.config.radio_km;
@@ -661,6 +663,20 @@ function applyConfigToUI(cfg) {
   document.getElementById("rangeMag").value = AppState.config.magnitud_min;
   document.getElementById("numMag").value = AppState.config.magnitud_min;
   document.getElementById("valMagBadge").textContent = `M ${AppState.config.magnitud_min.toFixed(1)}`;
+
+  const freqBadge = document.getElementById("valFreqBadge");
+  if (freqBadge) {
+    freqBadge.textContent = AppState.config.frecuencia_minutos === 60 ? "1 hora" : `${AppState.config.frecuencia_minutos} min`;
+  }
+
+  document.querySelectorAll(".freq-btn").forEach(btn => {
+    const f = parseInt(btn.getAttribute("data-freq"));
+    if (f === AppState.config.frecuencia_minutos) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
 
   document.getElementById("chkWhatsApp").checked = AppState.config.notificar_whatsapp;
 
@@ -703,6 +719,7 @@ async function saveConfigToGitHub() {
   const newConfig = {
     radio_km: parseFloat(document.getElementById("rangeRadio").value),
     magnitud_min: parseFloat(document.getElementById("rangeMag").value),
+    frecuencia_minutos: AppState.config.frecuencia_minutos || 5,
     notificar_whatsapp: document.getElementById("chkWhatsApp").checked
   };
 
@@ -864,6 +881,20 @@ function setupEventListeners() {
     numMag.value = val.toFixed(1);
     valMagBadge.textContent = `M ${val.toFixed(1)}`;
     AppState.config.magnitud_min = val;
+  });
+
+  // Selector de Frecuencia
+  document.querySelectorAll(".freq-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".freq-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const freq = parseInt(btn.getAttribute("data-freq")) || 5;
+      AppState.config.frecuencia_minutos = freq;
+      const freqBadge = document.getElementById("valFreqBadge");
+      if (freqBadge) {
+        freqBadge.textContent = freq === 60 ? "1 hora" : `${freq} min`;
+      }
+    });
   });
 
   // Filtros de Lista
