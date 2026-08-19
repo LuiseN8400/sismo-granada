@@ -80,11 +80,11 @@
     <!-- TAB 1: LISTA DE SISMOS (PREDETERMINADA) -->
     <div class="tab-view active" id="tab-list">
       <div class="ios-card" style="padding: 12px 16px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" id="listFilterLabel">Sismos recientes:</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" id="listFilterLabel">Filtro de visualización:</span>
           <div style="display: flex; gap: 8px;">
-            <button class="meta-chip active" id="btnFilterAll" style="border: none; cursor: pointer;">Todos</button>
-            <button class="meta-chip" id="btnFilterRadius" style="border: none; cursor: pointer;">En Radio (≤ <span id="txtFilterRadiusBadge">60</span> km)</button>
+            <button class="meta-chip active" id="btnFilterRadius" style="border: none; cursor: pointer;">🎯 Granada y Alrededores (≤ <span id="txtFilterRadiusBadge">60</span> km)</button>
+            <button class="meta-chip" id="btnFilterAll" style="border: none; cursor: pointer;">🌐 Todos</button>
           </div>
         </div>
       </div>

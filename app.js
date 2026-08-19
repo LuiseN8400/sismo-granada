@@ -11,7 +11,7 @@
 // =============================================================================
 const GRANADA_COORDS = [37.1773, -3.5986];
 
-// Endpoints primarios con soporte CORS garantizado
+// Endpoints oficiales con proxies de alta disponibilidad
 const EMSC_URL = "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&lat=37.1773&lon=-3.5986&maxradius=3.5&minmag=1.0&limit=60";
 const IGN_RSS_PROXY = "https://corsproxy.io/?url=" + encodeURIComponent("https://www.ign.es/ign/RssTools/sismologia.xml");
 const USGS_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=37.1773&longitude=-3.5986&maxradiuskm=350&minmagnitude=1.0";
@@ -31,7 +31,7 @@ const AppState = {
     token: ""
   },
   configSha: null,
-  filterOnlyRadius: false,
+  filterOnlyRadius: true, // FILTRAR POR DEFECTO A GRANADA Y ALREDEDORES
   map: null,
   granadaCircle: null,
   quakeLayerGroup: null,
@@ -39,7 +39,7 @@ const AppState = {
 };
 
 // =============================================================================
-// CÁLCULO DE HAVERSINE
+// CÁLCULO DE HAVERSINE Y UTILIDADES
 // =============================================================================
 function calcularHaversine(lat1, lon1, lat2, lon2) {
   const R = 6371.0; // Radio de la Tierra en km
@@ -53,10 +53,64 @@ function calcularHaversine(lat1, lon1, lat2, lon2) {
   return parseFloat((R * c).toFixed(1));
 }
 
+function parseSpanishDateToTimestamp(dateStr) {
+  // Formato esperado: "19/08/2026 17:14:51" o ISO "2026-08-19T17:14:51Z"
+  if (!dateStr) return 0;
+  if (dateStr.includes("/")) {
+    try {
+      const [datePart, timePart] = dateStr.split(" ");
+      const [day, month, year] = datePart.split("/").map(Number);
+      const [hour, minute, second] = (timePart || "00:00:00").split(":").map(Number);
+      return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
+    } catch (e) {
+      return 0;
+    }
+  }
+  const t = new Date(dateStr).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+function formatPlaceName(rawPlace) {
+  if (!rawPlace) return "Entorno de Granada";
+  let p = rawPlace.trim();
+
+  // Expansión de siglas de provincias y países
+  p = p.replace(/\.GR\b/g, " (Granada)");
+  p = p.replace(/\.AL\b/g, " (Almería)");
+  p = p.replace(/\.MA\b/g, " (Málaga)");
+  p = p.replace(/\.JA\b/g, " (Jaén)");
+  p = p.replace(/\.CO\b/g, " (Córdoba)");
+  p = p.replace(/\.SE\b/g, " (Sevilla)");
+  p = p.replace(/\.CA\b/g, " (Cádiz)");
+  p = p.replace(/\.H\b/g, " (Huelva)");
+  p = p.replace(/\.MU\b/g, " (Murcia)");
+  p = p.replace(/\.ARG\b/g, " (Argelia)");
+  p = p.replace(/\.POR\b/g, " (Portugal)");
+  p = p.replace(/\.MAR\b/g, " (Marruecos)");
+
+  // Expansión de direcciones cardinales
+  p = p.replace(/^NE\s+/i, "Noreste de ");
+  p = p.replace(/^NW\s+/i, "Noroeste de ");
+  p = p.replace(/^SE\s+/i, "Sureste de ");
+  p = p.replace(/^SW\s+/i, "Suroeste de ");
+  p = p.replace(/^NNE\s+/i, "Nor-noreste de ");
+  p = p.replace(/^NNW\s+/i, "Nor-noroeste de ");
+  p = p.replace(/^ENE\s+/i, "Este-noreste de ");
+  p = p.replace(/^WNW\s+/i, "Oeste-noroeste de ");
+  p = p.replace(/^ESE\s+/i, "Este-sureste de ");
+  p = p.replace(/^WSW\s+/i, "Oeste-suroeste de ");
+  p = p.replace(/^N\s+/i, "Norte de ");
+  p = p.replace(/^S\s+/i, "Sur de ");
+  p = p.replace(/^E\s+/i, "Este de ");
+  p = p.replace(/^W\s+/i, "Oeste de ");
+
+  return p;
+}
+
 // =============================================================================
 // SISTEMA DE TOASTS
 // =============================================================================
-function showToast(message, type = "info", duration = 3500) {
+function showToast(message, type = "info", duration = 3000) {
   const container = document.getElementById("toastContainer");
   if (!container) return;
 
@@ -88,7 +142,6 @@ function initMap() {
     zoomControl: true
   });
 
-  // Capa CartoDB Dark Matter / Positron
   L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
     subdomains: 'abcd',
@@ -126,7 +179,7 @@ function updateGranadaRadiusCircle() {
 }
 
 // =============================================================================
-// PARSEO Y NORMALIZACIÓN DE FUENTES SÍSMICAS
+// OBTENCIÓN Y PARSEO DE DATOS SÍSMICOS EN TIEMPO REAL
 // =============================================================================
 function parseIGNRSS(xmlText) {
   try {
@@ -153,7 +206,7 @@ function parseIGNRSS(xmlText) {
       const eventId = guid.includes("evid=") ? guid.split("evid=")[1] : (link.includes("evid=") ? link.split("evid=")[1] : `${lat}_${lon}`);
 
       let mag = 0.0;
-      let place = "Zona Sur / Granada";
+      let place = "Zona de Granada";
       let fechaHora = title.replace("-Info.terremoto:", "").trim();
       let depth = 0;
 
@@ -172,6 +225,7 @@ function parseIGNRSS(xmlText) {
         if (pMatch) depth = parseFloat(pMatch[1]);
       }
 
+      const timestamp = parseSpanishDateToTimestamp(fechaHora);
       const dist = calcularHaversine(GRANADA_COORDS[0], GRANADA_COORDS[1], lat, lon);
 
       events.push({
@@ -179,9 +233,11 @@ function parseIGNRSS(xmlText) {
         lat,
         lon,
         mag,
-        depth,
-        place,
+        depth: depth,
+        place: formatPlaceName(place),
+        rawPlace: place,
         fechaHora,
+        timestamp,
         distancia: dist,
         link: link || `http://www.ign.es/web/ign/portal/sis-catalogo-terremotos/-/catalogo-terremotos/detailTerremoto?evid=${eventId}`
       });
@@ -189,7 +245,7 @@ function parseIGNRSS(xmlText) {
 
     return events;
   } catch (e) {
-    console.warn("Error al parsear IGN RSS:", e);
+    console.warn("Error parseando IGN RSS:", e);
     return [];
   }
 }
@@ -206,15 +262,15 @@ function parseEMSCGeoJSON(data) {
       const depth = Math.abs(coords[2] || props.depth || 0);
       const mag = parseFloat(props.mag || 0);
       
-      // Formatear lugar
-      let place = props.flynn_region || "Andalucía / Sur";
-      if (place === "SPAIN") place = "Entorno de Granada / Andalucía";
+      let place = props.flynn_region || "Andalucía";
+      if (place === "SPAIN") place = "Entorno de Granada";
 
-      // Formatear fecha
       let fechaHora = props.time || "";
+      let timestamp = 0;
       if (fechaHora) {
         try {
           const d = new Date(fechaHora);
+          timestamp = d.getTime();
           fechaHora = d.toLocaleDateString("es-ES", { day: '2-digit', month: '2-digit', year: 'numeric' }) + " " +
                       d.toLocaleTimeString("es-ES", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         } catch (e) {}
@@ -229,92 +285,78 @@ function parseEMSCGeoJSON(data) {
         lon,
         mag,
         depth: parseFloat(depth.toFixed(1)),
-        place,
+        place: formatPlaceName(place),
+        rawPlace: place,
         fechaHora,
+        timestamp,
         distancia: dist,
         link: `https://www.emsc-csem.org/Earthquake/earthquake.php?id=${feat.id || id}`
       };
     });
   } catch (e) {
-    console.warn("Error al parsear EMSC:", e);
     return [];
   }
 }
 
-// =============================================================================
-// OBTENCIÓN Y COMBINACIÓN DE DATOS SÍSMICOS EN TIEMPO REAL
-// =============================================================================
 async function cargarDatosSismicos() {
   const badge = document.getElementById("lastSyncTime");
   const filterBadge = document.getElementById("txtFilterRadiusBadge");
   if (filterBadge) filterBadge.textContent = AppState.config.radio_km;
   if (badge) badge.textContent = "Actualizando...";
 
-  let eventosObtenidos = [];
+  let ignEvents = [];
+  let emscEvents = [];
 
-  // 1. Intentar IGN RSS vía Proxy de alta velocidad
-  try {
-    const rssResp = await fetch(IGN_RSS_PROXY, { signal: AbortSignal.timeout(4500) });
-    if (rssResp.ok) {
-      const xmlText = await rssResp.text();
-      if (xmlText && xmlText.includes("<item>")) {
-        eventosObtenidos = parseIGNRSS(xmlText);
+  // Peticiones paralelas para máxima velocidad
+  const [ignPromise, emscPromise] = [
+    fetch(IGN_RSS_PROXY, { signal: AbortSignal.timeout(5000) })
+      .then(r => r.ok ? r.text() : "")
+      .then(txt => txt.includes("<item>") ? parseIGNRSS(txt) : [])
+      .catch(() => []),
+    fetch(EMSC_URL, { signal: AbortSignal.timeout(5000) })
+      .then(r => r.ok ? r.json() : null)
+      .then(json => json ? parseEMSCGeoJSON(json) : [])
+      .catch(() => [])
+  ];
+
+  const results = await Promise.allSettled([ignPromise, emscPromise]);
+  if (results[0].status === "fulfilled") ignEvents = results[0].value;
+  if (results[1].status === "fulfilled") emscEvents = results[1].value;
+
+  // Mapa de profundidades exactas de EMSC indexadas por cercanía espacial/temporal
+  const depthMap = new Map();
+  emscEvents.forEach(e => {
+    const key = `${e.lat.toFixed(2)}_${e.lon.toFixed(2)}`;
+    if (e.depth > 0) depthMap.set(key, e.depth);
+  });
+
+  let combined = [];
+
+  if (ignEvents.length > 0) {
+    // Si tenemos datos del IGN, enriquecer con profundidad exacta de EMSC si falta
+    combined = ignEvents.map(ev => {
+      const key = `${ev.lat.toFixed(2)}_${ev.lon.toFixed(2)}`;
+      if ((!ev.depth || ev.depth === 0) && depthMap.has(key)) {
+        ev.depth = depthMap.get(key);
       }
-    }
-  } catch (e) {
-    console.info("Fallback a feed directo EMSC...");
+      return ev;
+    });
+  } else if (emscEvents.length > 0) {
+    combined = emscEvents;
   }
 
-  // 2. Si no se obtuvieron eventos, usar EMSC directo (CORS nativo instantáneo)
-  if (eventosObtenidos.length === 0) {
-    try {
-      const emscResp = await fetch(EMSC_URL, { signal: AbortSignal.timeout(4500) });
-      if (emscResp.ok) {
-        const jsonData = await emscResp.json();
-        eventosObtenidos = parseEMSCGeoJSON(jsonData);
-      }
-    } catch (e) {
-      console.warn("Error consultando EMSC:", e);
-    }
-  }
-
-  // 3. Respaldo adicional USGS
-  if (eventosObtenidos.length === 0) {
-    try {
-      const usgsResp = await fetch(USGS_URL, { signal: AbortSignal.timeout(4500) });
-      if (usgsResp.ok) {
-        const jsonData = await usgsResp.json();
-        eventosObtenidos = (jsonData.features || []).map(f => {
-          const p = f.properties || {};
-          const c = f.geometry?.coordinates || [0, 0, 0];
-          const dist = calcularHaversine(GRANADA_COORDS[0], GRANADA_COORDS[1], c[1], c[0]);
-          return {
-            id: f.id,
-            lat: c[1],
-            lon: c[0],
-            mag: parseFloat(p.mag || 0),
-            depth: Math.abs(c[2] || 0),
-            place: p.place || "Sur de España",
-            fechaHora: new Date(p.time).toLocaleString("es-ES"),
-            distancia: dist,
-            link: p.url || "https://earthquake.usgs.gov"
-          };
-        });
-      }
-    } catch (e) {}
-  }
-
-  if (eventosObtenidos.length > 0) {
-    // Ordenar cronológicamente (más recientes primero)
-    AppState.quakes = eventosObtenidos;
+  if (combined.length > 0) {
+    // Ordenar estrictamente por fecha descendente (más nuevo arriba)
+    combined.sort((a, b) => b.timestamp - a.timestamp);
+    AppState.quakes = combined;
     actualizarUIConSismos();
+
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (badge) badge.textContent = `Actualizado: ${timeStr}`;
-    showToast(`Actualizados ${eventosObtenidos.length} sismos en tiempo real`, "success", 2500);
+    showToast(`Actualizados ${combined.length} sismos en tiempo real`, "success", 2000);
   } else {
-    showToast("Reintentando conexión con la Red Sísmica...", "info", 2000);
-    if (badge) badge.textContent = "Sin conexión";
+    if (badge) badge.textContent = "Reintentando...";
   }
 }
 
@@ -341,18 +383,20 @@ function actualizarUIConSismos() {
 
   const enRadio = quakes.filter(q => q.distancia <= AppState.config.radio_km);
   const masCercano = [...quakes].sort((a, b) => a.distancia - b.distancia)[0];
-  const maxMagQuake = [...quakes].sort((a, b) => b.mag - a.mag)[0];
-  const ultimo = quakes[0];
+  const maxMagGranada = enRadio.length > 0
+    ? [...enRadio].sort((a, b) => b.mag - a.mag)[0]
+    : [...quakes].sort((a, b) => b.mag - a.mag)[0];
+  const ultimoGranada = enRadio.length > 0 ? enRadio[0] : quakes[0];
 
   // Actualizar KPI Cards
-  document.getElementById("kpiLastMag").textContent = `M ${ultimo.mag.toFixed(1)}`;
-  document.getElementById("kpiLastPlace").textContent = ultimo.place.replace(".GR", "").replace(".AL", "");
+  document.getElementById("kpiLastMag").textContent = `M ${ultimoGranada.mag.toFixed(1)}`;
+  document.getElementById("kpiLastPlace").textContent = ultimoGranada.place.replace(" (Granada)", "").substring(0, 18);
   document.getElementById("kpiInRadius").textContent = enRadio.length;
   document.getElementById("kpiRadiusSub").textContent = `<= ${AppState.config.radio_km} km`;
-  document.getElementById("kpiMaxMag").textContent = `M ${maxMagQuake.mag.toFixed(1)}`;
-  document.getElementById("kpiMaxSub").textContent = maxMagQuake.place.replace(".GR", "").substring(0, 16);
+  document.getElementById("kpiMaxMag").textContent = `M ${maxMagGranada.mag.toFixed(1)}`;
+  document.getElementById("kpiMaxSub").textContent = maxMagGranada.place.replace(" (Granada)", "").substring(0, 16);
   document.getElementById("kpiClosestDist").textContent = `${masCercano.distancia} km`;
-  document.getElementById("quakeCountBadge").textContent = quakes.length;
+  document.getElementById("quakeCountBadge").textContent = AppState.filterOnlyRadius ? enRadio.length : quakes.length;
   document.getElementById("txtActiveRadius").textContent = AppState.config.radio_km;
 
   // Actualizar Marcadores en el Mapa
@@ -373,16 +417,18 @@ function actualizarUIConSismos() {
         fillOpacity: 0.85
       });
 
+      const depthLabel = q.depth && q.depth > 0 ? `${q.depth} km` : "Superficial (< 5 km)";
+
       const popupContent = `
-        <div style="min-width: 180px; font-family: -apple-system, sans-serif;">
+        <div style="min-width: 190px; font-family: -apple-system, sans-serif;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <span style="background: ${color}; color: ${q.mag < 3.5 && q.mag >= 2.5 ? '#000' : '#fff'}; font-weight: 800; padding: 2px 7px; border-radius: 6px; font-size: 12px;">M ${q.mag.toFixed(1)}</span>
-            <span style="font-size: 11px; color: #8e8e93;">${q.distancia} km a Granada</span>
+            <span style="background: ${color}; color: ${q.mag < 3.5 && q.mag >= 2.5 ? '#000' : '#fff'}; font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 12px;">M ${q.mag.toFixed(1)}</span>
+            <span style="font-size: 11px; color: #8e8e93; font-weight: 600;">${q.distancia} km a Granada</span>
           </div>
-          <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700;">${q.place}</h4>
+          <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: #fff;">${q.place}</h4>
           <p style="margin: 0; font-size: 11px; color: #aaa;">🕒 ${q.fechaHora}</p>
-          <p style="margin: 2px 0 6px 0; font-size: 11px; color: #aaa;">⬇️ Profundidad: ${q.depth ? q.depth + ' km' : 'Superficial'}</p>
-          <a href="${q.link}" target="_blank" rel="noopener" style="display: inline-block; font-size: 11px; color: #0a84ff; text-decoration: none; font-weight: 600;">Ver Ficha Técnica →</a>
+          <p style="margin: 2px 0 6px 0; font-size: 11px; color: #aaa;">⬇️ Profundidad: ${depthLabel}</p>
+          <a href="${q.link}" target="_blank" rel="noopener" style="display: inline-block; font-size: 11px; color: #0a84ff; text-decoration: none; font-weight: 600;">Ver Ficha Técnica Oficial →</a>
         </div>
       `;
 
@@ -406,7 +452,8 @@ function renderizarListaSismos() {
   if (quakes.length === 0) {
     container.innerHTML = `
       <div style="text-align: center; padding: 40px 16px; color: var(--text-secondary);">
-        <p>No hay sismos registrados en el radio de ${AppState.config.radio_km} km.</p>
+        <p style="font-size: 15px; font-weight: 600; margin-bottom: 6px;">No hay sismos en tu radio configurado (${AppState.config.radio_km} km).</p>
+        <p style="font-size: 13px;">Toca en "Todos" para ver sismos de toda la península o amplía el radio en Ajustes (⚙️).</p>
       </div>
     `;
     return;
@@ -415,12 +462,7 @@ function renderizarListaSismos() {
   container.innerHTML = quakes.map(q => {
     const badgeClass = getMagBadgeClass(q.mag);
     const inRadius = q.distancia <= AppState.config.radio_km;
-    const cleanPlace = q.place
-      .replace(".GR", " (Granada)")
-      .replace(".AL", " (Almería)")
-      .replace(".MA", " (Málaga)")
-      .replace(".JA", " (Jaén)")
-      .replace(".CA", " (Cádiz)");
+    const depthLabel = q.depth && q.depth > 0 ? `${q.depth} km` : "Superficial (< 5 km)";
 
     return `
       <div class="quake-item" onclick="focusQuakeOnMap(${q.lat}, ${q.lon})">
@@ -429,11 +471,11 @@ function renderizarListaSismos() {
           <span class="mag-label">Mag</span>
         </div>
         <div class="quake-details">
-          <div class="quake-place">${cleanPlace}</div>
+          <div class="quake-place">${q.place}</div>
           <div class="quake-meta">
             <span class="meta-chip ${inRadius ? 'highlight' : ''}">📍 ${q.distancia} km a Granada</span>
             <span class="meta-chip">🕒 ${q.fechaHora}</span>
-            <span class="meta-chip">⬇️ ${q.depth ? q.depth + ' km' : 'Superficial'}</span>
+            <span class="meta-chip">⬇️ ${depthLabel}</span>
           </div>
         </div>
       </div>
@@ -442,7 +484,6 @@ function renderizarListaSismos() {
 }
 
 window.focusQuakeOnMap = function(lat, lon) {
-  // Cambiar al tab del mapa
   const mapBtn = document.querySelector('.segment-btn[data-tab="tab-map"]');
   if (mapBtn) mapBtn.click();
   if (AppState.map) {
@@ -573,7 +614,6 @@ async function saveConfigToGitHub() {
   saveBtn.disabled = true;
   saveBtn.innerHTML = `<span>⏳ Guardando en GitHub...</span>`;
 
-  // Obtener último SHA
   const getUrl = `https://api.github.com/repos/${AppState.github.owner}/${AppState.github.repo}/contents/config.json?ref=${AppState.github.branch}`;
   let sha = AppState.configSha;
   
@@ -762,6 +802,7 @@ function setupEventListeners() {
     this.classList.add("active");
     document.getElementById("btnFilterRadius").classList.remove("active");
     renderizarListaSismos();
+    document.getElementById("quakeCountBadge").textContent = AppState.quakes.length;
   });
 
   document.getElementById("btnFilterRadius").addEventListener("click", function() {
@@ -769,6 +810,8 @@ function setupEventListeners() {
     this.classList.add("active");
     document.getElementById("btnFilterAll").classList.remove("active");
     renderizarListaSismos();
+    const enRadio = AppState.quakes.filter(q => q.distancia <= AppState.config.radio_km);
+    document.getElementById("quakeCountBadge").textContent = enRadio.length;
   });
 
   // Botones de Acción
@@ -781,7 +824,6 @@ function setupEventListeners() {
   document.getElementById("btnCloseSettings").addEventListener("click", closeSettingsModal);
   document.getElementById("btnSaveGithubSettings").addEventListener("click", saveGithubSettingsToStorage);
   
-  // Cerrar modal al tocar fuera
   document.getElementById("settingsModal").addEventListener("click", (e) => {
     if (e.target.id === "settingsModal") closeSettingsModal();
   });
@@ -811,6 +853,6 @@ document.addEventListener("DOMContentLoaded", () => {
   cargarDatosSismicos();
   registerServiceWorker();
 
-  // Auto-refresco cada 60 segundos en la PWA mientras esté abierta
-  setInterval(cargarDatosSismicos, 60000);
+  // Auto-refresco cada 45 segundos en la PWA mientras esté abierta
+  setInterval(cargarDatosSismicos, 45000);
 });
