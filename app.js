@@ -348,6 +348,13 @@ function parseEMSCGeoJSON(data) {
   }
 }
 
+function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+}
+
 async function cargarDatosSismicos() {
   const badge = document.getElementById("lastSyncTime");
   const filterBadge = document.getElementById("txtFilterRadiusBadge");
@@ -357,21 +364,28 @@ async function cargarDatosSismicos() {
   let ignEvents = [];
   let emscEvents = [];
 
-  // Peticiones paralelas a fuentes de alta velocidad
-  const [ignPromise, emscPromise] = [
-    fetch(IGN_RSS_PROXY, { signal: AbortSignal.timeout(5000) })
-      .then(r => r.ok ? r.text() : "")
-      .then(txt => txt.includes("<item>") ? parseIGNRSS(txt) : [])
-      .catch(() => []),
-    fetch(EMSC_URL, { signal: AbortSignal.timeout(5000) })
-      .then(r => r.ok ? r.json() : null)
-      .then(json => json ? parseEMSCGeoJSON(json) : [])
-      .catch(() => [])
-  ];
+  // Peticiones paralelas a fuentes de alta velocidad compatibles con todos los navegadores
+  const ignPromise = fetchWithTimeout(IGN_RSS_PROXY, {}, 7000)
+    .then(r => r.ok ? r.text() : "")
+    .then(txt => txt.includes("<item>") ? parseIGNRSS(txt) : [])
+    .catch(err => {
+      console.warn("IGN RSS fetch warning:", err);
+      return [];
+    });
+
+  const emscPromise = fetchWithTimeout(EMSC_URL, {}, 7000)
+    .then(r => r.ok ? r.json() : null)
+    .then(json => json ? parseEMSCGeoJSON(json) : [])
+    .catch(err => {
+      console.warn("EMSC fetch warning:", err);
+      return [];
+    });
 
   const results = await Promise.allSettled([ignPromise, emscPromise]);
-  if (results[0].status === "fulfilled") ignEvents = results[0].value;
-  if (results[1].status === "fulfilled") emscEvents = results[1].value;
+  if (results[0].status === "fulfilled" && Array.isArray(results[0].value)) ignEvents = results[0].value;
+  if (results[1].status === "fulfilled" && Array.isArray(results[1].value)) emscEvents = results[1].value;
+
+  console.log(`[Sismo] Obtenidos: ${ignEvents.length} de IGN RSS, ${emscEvents.length} de EMSC/IGN`);
 
   // Fusión inteligente: Unir todos los sismos y deduplicar por cercanía espaciotemporal
   const merged = [];
@@ -379,7 +393,6 @@ async function cargarDatosSismicos() {
 
   // 1. Añadir sismos de EMSC (que incluye todos los microseísmos en vivo de esta tarde)
   emscEvents.forEach(e => {
-    // Clave de proximidad (redondeo a 1 decimal y ventana de 5 minutos)
     const timeSlot = Math.floor(e.timestamp / 300000);
     const key = `${e.lat.toFixed(2)}_${e.lon.toFixed(2)}_${timeSlot}`;
     if (!processedKeys.has(key)) {
@@ -396,7 +409,6 @@ async function cargarDatosSismicos() {
       processedKeys.add(key);
       merged.push(e);
     } else {
-      // Si ya existía, usar el nombre específico de municipio que da el IGN si es más detallado
       const existing = merged.find(m => Math.abs(m.timestamp - e.timestamp) < 300000 && calcularHaversine(m.lat, m.lon, e.lat, e.lon) < 5);
       if (existing && e.place && e.place.includes("(Granada)")) {
         existing.place = e.place;
@@ -405,7 +417,6 @@ async function cargarDatosSismicos() {
   });
 
   if (merged.length > 0) {
-    // Ordenar estrictamente por fecha descendente (más nuevo arriba)
     merged.sort((a, b) => b.timestamp - a.timestamp);
     AppState.quakes = merged;
     actualizarUIConSismos();
