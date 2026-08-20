@@ -41,6 +41,9 @@ jobs:
         env:
           PHONE_NUMBER: ${{ secrets.PHONE_NUMBER }}
           CALLMEBOT_API_KEY: ${{ secrets.CALLMEBOT_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           python check_terremotos.py
 

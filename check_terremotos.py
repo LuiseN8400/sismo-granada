@@ -432,37 +432,34 @@ def obtener_todos_los_sismos() -> list[dict]:
 # ENVÍO DE ALERTAS POR WHATSAPP (CALLMEBOT)
 # ==============================================================================
 def formatear_mensaje_whatsapp(evento: dict, distancia_km: float) -> str:
-    """Construye un mensaje limpio y bien estructurado con emojis para WhatsApp."""
+    """Construye un mensaje limpio y directo para WhatsApp/SMS optimizado para CallMeBot."""
     lugar = evento["lugar"].replace(".GR", " (Granada)").replace(".AL", " (Almería)").replace(".MA", " (Málaga)").replace(".JA", " (Jaén)")
     prof = f"{evento['profundidad_km']} km" if evento.get("profundidad_km") else "Superficial"
-    
-    # Determinar emoji de severidad
     mag = evento["magnitud"]
+    
     if mag >= 4.0:
-        severidad = "🚨🚨 *ALERTA SÍSMICA SEVERA*"
+        encabezado = "*ALERTA SISMICA SEVERA (GRANADA)*"
     elif mag >= 3.0:
-        severidad = "⚠️ *ALERTA SÍSMICA MODERADA*"
+        encabezado = "*ALERTA SISMICA MODERADA (GRANADA)*"
     else:
-        severidad = "🟢 *REGISTRO SÍSMICO DETECTADO*"
+        encabezado = "*REGISTRO SISMICO (GRANADA)*"
 
     msg = (
-        f"{severidad}\n"
-        f"📍 *Zona/Municipio:* {lugar}\n"
-        f"💥 *Magnitud:* {mag:.1f} mbLg\n"
-        f"📏 *Distancia a Granada:* {distancia_km:.1f} km\n"
-        f"⬇️ *Profundidad:* {prof}\n"
-        f"🕒 *Fecha/Hora:* {evento['fecha_hora']}\n"
-        f"🌐 *Fuente:* {evento['fuente']}\n"
-        f"🔗 *Info Oficial:* {evento['enlace']}"
+        f"{encabezado}\n\n"
+        f"Zona: {lugar}\n"
+        f"Magnitud: {mag:.1f} mbLg\n"
+        f"Distancia a Granada: {distancia_km:.1f} km\n"
+        f"Profundidad: {prof}\n"
+        f"Hora: {evento['fecha_hora']}\n"
+        f"Ficha: {evento['enlace']}"
     )
     return msg
 
 
 def enviar_alerta_whatsapp(mensaje: str, phone: str, api_key: str) -> bool:
     """Envía la alerta por WhatsApp consumiendo la API de CallMeBot."""
-    # Limpiar formato de teléfono (quitar +, espacios y guiones)
     phone_clean = phone.replace("+", "").replace(" ", "").replace("-", "").strip()
-    mensaje_encoded = urllib.parse.quote(mensaje)
+    mensaje_encoded = urllib.parse.quote_plus(mensaje)
     
     endpoint = f"https://api.callmebot.com/whatsapp.php?phone={phone_clean}&text={mensaje_encoded}&apikey={api_key.strip()}"
     
@@ -470,13 +467,67 @@ def enviar_alerta_whatsapp(mensaje: str, phone: str, api_key: str) -> bool:
         req = urllib.request.Request(endpoint, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
             resp_text = response.read().decode("utf-8", errors="replace")
-            if response.status == 200:
+            if "Message to:" in resp_text and "Message not sent" not in resp_text and "0 messages left" not in resp_text:
                 print(f"📱 Notificación WhatsApp enviada con éxito a +{phone_clean}.")
                 return True
             else:
-                print(f"⚠️ CallMeBot respondió con código {response.status}: {resp_text}")
+                print(f"⚠️ Respuesta de CallMeBot: {resp_text.strip()}")
+                if "0 messages left" in resp_text or "subscribe" in resp_text.lower():
+                    print("🚨 ATENCIÓN: CallMeBot indica que se ha alcanzado la cuota gratuita para este número.")
     except Exception as e:
         print(f"❌ Error al conectar con CallMeBot WhatsApp API: {e}")
+
+    return False
+
+
+def enviar_alerta_telegram(mensaje: str, bot_token: str, chat_id: str) -> bool:
+    """Envía la alerta por Telegram Bot API (100% oficial, ilimitado y gratuito)."""
+    endpoint = f"https://api.telegram.org/bot{bot_token.strip()}/sendMessage"
+    payload = json.dumps({
+        "chat_id": chat_id.strip(),
+        "text": mensaje,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": False
+    }).encode("utf-8")
+    
+    try:
+        req = urllib.request.Request(
+            endpoint,
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT}
+        )
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
+            if response.status == 200:
+                print(f"🚀 Notificación Telegram enviada con éxito a chat {chat_id}.")
+                return True
+    except Exception as e:
+        print(f"❌ Error al enviar alerta por Telegram: {e}")
+
+    return False
+
+
+def enviar_alerta_ntfy(mensaje: str, topic: str) -> bool:
+    """Envía notificación push gratuita e ilimitada a la app Ntfy en el móvil."""
+    endpoint = f"https://ntfy.sh/{topic.strip()}"
+    payload = mensaje.encode("utf-8")
+    
+    try:
+        req = urllib.request.Request(
+            endpoint,
+            data=payload,
+            headers={
+                "Title": "Alerta Sismica Granada",
+                "Priority": "high",
+                "Tags": "warning,earthquake",
+                "User-Agent": USER_AGENT
+            }
+        )
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
+            if response.status == 200:
+                print(f"🔔 Notificación Push Ntfy enviada con éxito al topic '{topic}'.")
+                return True
+    except Exception as e:
+        print(f"❌ Error al enviar alerta por Ntfy: {e}")
 
     return False
 
@@ -504,6 +555,7 @@ def main() -> int:
 
     # 2. Cargar Caché de Eventos Vistos
     seen_ids, raw_cache = cargar_cache_eventos()
+    es_arranque_inicial = len(seen_ids) == 0
     print(f"📂 Caché cargada: {len(seen_ids)} eventos previamente registrados.\n")
 
     # 3. Obtener Datos Sísmicos
@@ -512,7 +564,7 @@ def main() -> int:
         print("ℹ️ No hay eventos para procesar en este ciclo.")
         return 0
 
-    # 4. Credenciales de WhatsApp
+    # 4. Credenciales de Notificación
     phone_number = (
         os.environ.get("PHONE_NUMBER")
         or os.environ.get("WHATSAPP_PHONE")
@@ -520,8 +572,13 @@ def main() -> int:
     ).strip()
     callmebot_api_key = os.environ.get("CALLMEBOT_API_KEY", "").strip()
 
+    telegram_bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    ntfy_topic = os.environ.get("NTFY_TOPIC", "").strip()
+
     alertas_enviadas = 0
     nuevos_eventos_registrados = 0
+    candidatos_alerta = []
 
     print("🔍 Analizando sismos detectados:")
     for ev in eventos:
@@ -546,17 +603,38 @@ def main() -> int:
             nuevos_eventos_registrados += 1
 
             if cumple_radio and cumple_magnitud:
-                print(f"   🎯 ¡EVENTO RELEVANTE DETECTADO! (M{mag:.1f} a {distancia:.1f} km de Granada)")
-                
-                if notificar_whatsapp:
-                    if phone_number and callmebot_api_key:
-                        mensaje = formatear_mensaje_whatsapp(ev, distancia)
-                        if enviar_alerta_whatsapp(mensaje, phone_number, callmebot_api_key):
-                            alertas_enviadas += 1
-                    else:
-                        print("   ⚠️ Notificación omitida: Variables PHONE_NUMBER y/o CALLMEBOT_API_KEY no definidas en el entorno.")
-                else:
-                    print("   ⏸️ Notificaciones desactivadas en config.json.")
+                candidatos_alerta.append((ev, distancia))
+
+    # Si es el primer arranque, inicializar caché sin enviar alertas masivas del pasado
+    if es_arranque_inicial:
+        print("ℹ️ Inicialización de caché: Registrados todos los sismos existentes sin alertas retroactivas.")
+        guardar_cache_eventos(seen_ids, raw_cache)
+        return 0
+
+    # Si hay sismos nuevos que cumplen los filtros, enviar SOLO la alerta del sismo del momento
+    if candidatos_alerta and notificar_whatsapp:
+        # Tomar el sismo más reciente
+        sismo_del_momento, distancia = candidatos_alerta[0]
+        print(f"\n🎯 ¡NUEVA ALERTA DEL MOMENTO! -> M{sismo_del_momento['magnitud']:.1f} en {sismo_del_momento['lugar']} ({distancia:.1f} km)")
+        mensaje = formatear_mensaje_whatsapp(sismo_del_momento, distancia)
+        
+        # 1. Enviar vía WhatsApp (CallMeBot)
+        if phone_number and callmebot_api_key:
+            if enviar_alerta_whatsapp(mensaje, phone_number, callmebot_api_key):
+                alertas_enviadas += 1
+        
+        # 2. Enviar vía Telegram (opcional, ilimitado)
+        if telegram_bot_token and telegram_chat_id:
+            if enviar_alerta_telegram(mensaje, telegram_bot_token, telegram_chat_id):
+                alertas_enviadas += 1
+
+        # 3. Enviar vía Ntfy (opcional)
+        if ntfy_topic:
+            if enviar_alerta_ntfy(mensaje, ntfy_topic):
+                alertas_enviadas += 1
+
+    elif not notificar_whatsapp:
+        print("   ⏸️ Notificaciones desactivadas en config.json.")
 
     # 5. Persistir Caché si hubo nuevos eventos
     if nuevos_eventos_registrados > 0:
@@ -565,7 +643,7 @@ def main() -> int:
         print("ℹ️ Sin nuevos eventos sísmicos en este ciclo.")
 
     print("\n" + "-" * 65)
-    print(f"✨ Resumen de ejecución: {len(eventos)} sismos inspeccionados | {nuevos_eventos_registrados} nuevos | {alertas_enviadas} alertas enviadas.")
+    print(f"✨ Resumen de ejecución: {len(eventos)} sismos inspeccionados | {nuevos_eventos_registrados} nuevos | {alertas_enviadas} alerta enviada.")
     print("-" * 65 + "\n")
 
     return 0
