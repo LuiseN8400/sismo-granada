@@ -920,6 +920,13 @@ function setupEventListeners() {
   document.getElementById("btnSaveConfig").addEventListener("click", saveConfigToGitHub);
   document.getElementById("btnTriggerWorkflow").addEventListener("click", triggerWorkflowDispatch);
 
+  // Push Notifications Buttons
+  const btnEnablePush = document.getElementById("btnEnablePush");
+  if (btnEnablePush) btnEnablePush.addEventListener("click", solicitarPermisoPush);
+
+  const btnTestPush = document.getElementById("btnTestPush");
+  if (btnTestPush) btnTestPush.addEventListener("click", probarNotificacionPush);
+
   // Settings Modal
   document.getElementById("btnOpenSettings").addEventListener("click", openSettingsModal);
   document.getElementById("btnCloseSettings").addEventListener("click", closeSettingsModal);
@@ -931,13 +938,96 @@ function setupEventListeners() {
 }
 
 // =============================================================================
+// GESTIÓN DE NOTIFICACIONES PUSH NATIVAS (iOS 16.4+ & Android)
+// =============================================================================
+function checkPushStatus() {
+  const badge = document.getElementById("badgePushStatus");
+  if (!badge) return;
+
+  if (!("Notification" in window)) {
+    badge.textContent = "Añadir a Inicio 📲";
+    badge.style.background = "rgba(255, 159, 10, 0.15)";
+    badge.style.color = "var(--accent-orange)";
+    return;
+  }
+
+  if (Notification.permission === "granted") {
+    badge.textContent = "Activas en iOS ✅";
+    badge.style.background = "rgba(48, 209, 88, 0.15)";
+    badge.style.color = "var(--accent-green)";
+  } else if (Notification.permission === "denied") {
+    badge.textContent = "Bloqueadas en Ajustes ❌";
+    badge.style.background = "rgba(255, 69, 58, 0.15)";
+    badge.style.color = "var(--accent-red)";
+  } else {
+    badge.textContent = "Pendiente de Activar";
+    badge.style.background = "rgba(10, 132, 255, 0.15)";
+    badge.style.color = "var(--accent-blue)";
+  }
+}
+
+async function solicitarPermisoPush() {
+  if (!("Notification" in window)) {
+    showToast("Para activar notificaciones en iPhone, pulsa Compartir ➔ 'Añadir a pantalla de inicio'.", "info", 5000);
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    checkPushStatus();
+
+    if (permission === "granted") {
+      showToast("¡Notificaciones Push activadas en tu dispositivo!", "success", 4000);
+      probarNotificacionPush();
+    } else if (permission === "denied") {
+      showToast("Permiso denegado. Puedes activarlo en Ajustes de iOS ➔ Safari/SismoGranada.", "error", 4000);
+    }
+  } catch (err) {
+    showToast("No se pudo solicitar el permiso de notificación.", "error");
+  }
+}
+
+function probarNotificacionPush() {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    solicitarPermisoPush();
+    return;
+  }
+
+  const title = "🚨 Alerta Sísmica Granada (Prueba)";
+  const options = {
+    body: "M 3.2 • Churriana de la Vega (Granada) • 4.2 km a Granada • Prof: 0.0 km",
+    icon: "./icons/icon-192.png",
+    badge: "./icons/icon-192.png",
+    vibrate: [200, 100, 200],
+    tag: "test-alert",
+    data: { url: "./" }
+  };
+
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification(title, options);
+      showToast("Notificación enviada a la pantalla de tu móvil", "success", 3000);
+    }).catch(() => {
+      new Notification(title, options);
+      showToast("Notificación enviada a la pantalla de tu móvil", "success", 3000);
+    });
+  } else {
+    new Notification(title, options);
+    showToast("Notificación enviada a la pantalla de tu móvil", "success", 3000);
+  }
+}
+
+// =============================================================================
 // SERVICE WORKER REGISTRATION (PWA)
 // =============================================================================
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js")
-        .then(reg => console.log("Service Worker activo"))
+        .then(reg => {
+          console.log("Service Worker activo");
+          checkPushStatus();
+        })
         .catch(err => console.warn("Service worker warning:", err));
     });
   }

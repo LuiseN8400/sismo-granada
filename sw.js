@@ -1,10 +1,9 @@
 /**
- * Service Worker para SismoGranada PWA
- * =====================================
- * Proporciona soporte offline para activos estáticos (HTML, CSS, JS, Iconos).
+ * Service Worker para SismoGranada PWA con Soporte de Push Notifications (iOS 16.4+ & Android)
+ * ==============================================================================================
  */
 
-const CACHE_NAME = "sismogranada-v8";
+const CACHE_NAME = "sismogranada-v9";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -20,7 +19,6 @@ const STATIC_ASSETS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log("[SW] Pre-cacheados activos estáticos");
       return cache.addAll(STATIC_ASSETS).catch((err) => console.warn("[SW] Cache add warning:", err));
     })
   );
@@ -46,20 +44,20 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // No cachear llamadas a APIs dinámicas (GitHub, IGN, CallMeBot, proxies)
+  // No cachear llamadas a APIs dinámicas (GitHub, IGN, CallMeBot, proxies, websockets, ntfy)
   if (
     url.hostname.includes("github.com") ||
     url.hostname.includes("ign.es") ||
     url.hostname.includes("callmebot.com") ||
     url.hostname.includes("seismicportal.eu") ||
     url.hostname.includes("allorigins") ||
-    url.hostname.includes("corsproxy")
+    url.hostname.includes("corsproxy") ||
+    url.hostname.includes("ntfy.sh")
   ) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Estrategia Network First con fallback a caché para activos estáticos
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -72,5 +70,59 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+// =============================================================================
+// GESTIÓN DE NOTIFICACIONES PUSH NATIVAS (iOS 16.4+, macOS, Android)
+// =============================================================================
+self.addEventListener("push", (event) => {
+  let title = "🚨 Alerta Sísmica Granada";
+  let body = "Nuevo sismo registrado en el área de Granada.";
+  let dataUrl = "./";
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      title = data.title || title;
+      body = data.body || body;
+      if (data.url) dataUrl = data.url;
+    } catch (e) {
+      body = event.data.text() || body;
+    }
+  }
+
+  const options = {
+    body: body,
+    icon: "./icons/icon-192.png",
+    badge: "./icons/icon-192.png",
+    vibrate: [200, 100, 200, 100, 300],
+    tag: "sismo-granada-alert",
+    renotify: true,
+    requireInteraction: true,
+    data: { url: dataUrl }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || "./";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes("sismo-granada") && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
   );
 });
