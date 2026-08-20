@@ -618,10 +618,15 @@ def main() -> int:
         print(f"\n🎯 ¡NUEVA ALERTA DEL MOMENTO! -> M{sismo_del_momento['magnitud']:.1f} en {sismo_del_momento['lugar']} ({distancia:.1f} km)")
         mensaje = formatear_mensaje_whatsapp(sismo_del_momento, distancia)
         
-        # 1. Enviar vía WhatsApp (CallMeBot)
-        if phone_number and callmebot_api_key:
-            if enviar_alerta_whatsapp(mensaje, phone_number, callmebot_api_key):
-                alertas_enviadas += 1
+        # 1. Enviar vía WhatsApp (CallMeBot) a uno o varios números
+        phones = [p.strip() for p in phone_number.replace(";", ",").split(",") if p.strip()]
+        keys = [k.strip() for k in callmebot_api_key.replace(";", ",").split(",") if k.strip()]
+
+        for i, p in enumerate(phones):
+            k = keys[i] if i < len(keys) else (keys[0] if keys else "")
+            if p and k:
+                if enviar_alerta_whatsapp(mensaje, p, k):
+                    alertas_enviadas += 1
         
         # 2. Enviar vía Telegram (opcional, ilimitado)
         if telegram_bot_token and telegram_chat_id:
