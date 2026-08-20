@@ -39,30 +39,102 @@
   --blur-glass: blur(20px);
 }
 
-@media (prefers-color-scheme: light) {
-  :root[data-theme="auto"] {
-    --bg-primary: #f2f2f7;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #e5e5ea;
-    --bg-card: rgba(255, 255, 255, 0.85);
-    --bg-card-hover: rgba(255, 255, 255, 0.95);
-    --bg-glass: rgba(255, 255, 255, 0.75);
-    --bg-input: #e5e5ea;
-    
-    --text-primary: #000000;
-    --text-secondary: #6c6c70;
-    --text-tertiary: #8e8e93;
-    
-    --border-color: rgba(0, 0, 0, 0.08);
-    --border-focus: #007aff;
-    --accent-blue: #007aff;
-    --accent-green: #34c759;
-    --accent-yellow: #ffcc00;
-    --accent-orange: #ff9500;
-    --accent-red: #ff3b30;
-    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.08);
-  }
+/* ==========================================================================
+   TEMA CLARO (LIGHT MODE)
+   ========================================================================== */
+[data-theme="light"] {
+  --bg-primary: #f2f2f7;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e5e5ea;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-hover: rgba(245, 245, 247, 0.98);
+  --bg-glass: rgba(242, 242, 247, 0.88);
+  --bg-input: #e5e5ea;
+  
+  --text-primary: #1c1c1e;
+  --text-secondary: #636366;
+  --text-tertiary: #8e8e93;
+  
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-focus: #007aff;
+  
+  --accent-blue: #007aff;
+  --accent-green: #34c759;
+  --accent-yellow: #ffcc00;
+  --accent-orange: #ff9500;
+  --accent-red: #ff3b30;
+  --accent-purple: #af52de;
+  
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
+
+[data-theme="light"] .segmented-control {
+  background: #e5e5ea;
+}
+
+[data-theme="light"] .segment-btn.active {
+  background: #ffffff;
+  color: #1c1c1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .stat-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .quake-item {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .quake-item:active {
+  background: #f2f2f7;
+}
+
+[data-theme="light"] .quake-place {
+  color: #1c1c1e;
+}
+
+[data-theme="light"] .meta-chip {
+  background: #f2f2f7;
+  color: #636366;
+}
+
+[data-theme="light"] .meta-chip.active {
+  background: var(--accent-blue) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .modal-drawer {
+  background: #ffffff;
+}
+
+[data-theme="light"] .form-input {
+  background: #f2f2f7;
+  color: #1c1c1e;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .freq-btn {
+  background: #f2f2f7;
+  color: #636366;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #1c1c1e !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .leaflet-popup-tip {
+  background: #ffffff !important;
+}
+
 
 /* Reset y estructura base */
 *, *::before, *::after {

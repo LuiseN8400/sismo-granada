@@ -917,8 +917,9 @@ function setupEventListeners() {
 
   // Botones de Acción
   document.getElementById("btnRefresh").addEventListener("click", cargarDatosSismicos);
-  document.getElementById("btnSaveConfig").addEventListener("click", saveConfigToGitHub);
-  document.getElementById("btnTriggerWorkflow").addEventListener("click", triggerWorkflowDispatch);
+  // Theme Toggle Button
+  const btnThemeToggle = document.getElementById("btnThemeToggle");
+  if (btnThemeToggle) btnThemeToggle.addEventListener("click", toggleTheme);
 
   // Push Notifications Buttons
   const btnEnablePush = document.getElementById("btnEnablePush");
@@ -935,6 +936,31 @@ function setupEventListeners() {
   document.getElementById("settingsModal").addEventListener("click", (e) => {
     if (e.target.id === "settingsModal") closeSettingsModal();
   });
+}
+
+// =============================================================================
+// GESTIÓN DE TEMA (MODO CLARO / MODO OSCURO)
+// =============================================================================
+function initTheme() {
+  const saved = localStorage.getItem("sismo_theme") || "dark";
+  applyTheme(saved);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const btn = document.getElementById("btnThemeToggle");
+  if (btn) {
+    btn.textContent = theme === "light" ? "🌙" : "☀️";
+    btn.title = theme === "light" ? "Cambiar a Modo Oscuro" : "Cambiar a Modo Claro";
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = current === "light" ? "dark" : "light";
+  applyTheme(next);
+  localStorage.setItem("sismo_theme", next);
+  showToast(next === "light" ? "Modo Claro activado ☀️" : "Modo Oscuro activado 🌙", "info", 2000);
 }
 
 // =============================================================================
@@ -1037,6 +1063,7 @@ function registerServiceWorker() {
 // BOOTSTRAP DE LA APLICACIÓN
 // =============================================================================
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   initMap();
   setupEventListeners();
   loadGithubSettingsFromStorage();
