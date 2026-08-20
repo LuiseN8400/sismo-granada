@@ -453,22 +453,13 @@ function actualizarUIConSismos() {
   if (!quakes || quakes.length === 0) return;
 
   const enRadio = quakes.filter(q => q.distancia <= AppState.config.radio_km);
-  const masCercano = [...quakes].sort((a, b) => a.distancia - b.distancia)[0];
-  const maxMagGranada = enRadio.length > 0
-    ? [...enRadio].sort((a, b) => b.mag - a.mag)[0]
-    : [...quakes].sort((a, b) => b.mag - a.mag)[0];
-  const ultimoGranada = enRadio.length > 0 ? enRadio[0] : quakes[0];
 
-  // Actualizar KPI Cards
-  document.getElementById("kpiLastMag").textContent = `M ${ultimoGranada.mag.toFixed(1)}`;
-  document.getElementById("kpiLastPlace").textContent = ultimoGranada.place.replace(" (Granada)", "").substring(0, 18);
-  document.getElementById("kpiInRadius").textContent = enRadio.length;
-  document.getElementById("kpiRadiusSub").textContent = `<= ${AppState.config.radio_km} km`;
-  document.getElementById("kpiMaxMag").textContent = `M ${maxMagGranada.mag.toFixed(1)}`;
-  document.getElementById("kpiMaxSub").textContent = maxMagGranada.place.replace(" (Granada)", "").substring(0, 16);
-  document.getElementById("kpiClosestDist").textContent = `${masCercano.distancia} km`;
-  document.getElementById("quakeCountBadge").textContent = AppState.filterOnlyRadius ? enRadio.length : quakes.length;
-  document.getElementById("txtActiveRadius").textContent = AppState.config.radio_km;
+  // Actualizar Contador de la Pestaña
+  const countBadge = document.getElementById("quakeCountBadge");
+  if (countBadge) countBadge.textContent = enRadio.length;
+
+  const txtRadius = document.getElementById("txtActiveRadius");
+  if (txtRadius) txtRadius.textContent = AppState.config.radio_km;
 
   // Actualizar Marcadores en el Mapa
   if (AppState.quakeLayerGroup) {
@@ -508,7 +499,7 @@ function actualizarUIConSismos() {
     });
   }
 
-  // Renderizar Lista de Sismos
+  // Renderizar Lista Directa de Sismos de Granada
   renderizarListaSismos();
 }
 
@@ -516,15 +507,13 @@ function renderizarListaSismos() {
   const container = document.getElementById("quakeListContainer");
   if (!container) return;
 
-  const quakes = AppState.filterOnlyRadius
-    ? AppState.quakes.filter(q => q.distancia <= AppState.config.radio_km)
-    : AppState.quakes;
+  const quakes = AppState.quakes.filter(q => q.distancia <= AppState.config.radio_km);
 
   if (quakes.length === 0) {
     container.innerHTML = `
       <div style="text-align: center; padding: 40px 16px; color: var(--text-secondary);">
-        <p style="font-size: 15px; font-weight: 600; margin-bottom: 6px;">No hay sismos en tu radio configurado (${AppState.config.radio_km} km).</p>
-        <p style="font-size: 13px;">Toca en "Todos" para ver sismos de toda la península o amplía el radio en Ajustes (⚙️).</p>
+        <p style="font-size: 15px; font-weight: 600; margin-bottom: 6px;">No hay sismos recientes en el radio de Granada (${AppState.config.radio_km} km).</p>
+        <p style="font-size: 13px;">Se actualizará automáticamente en cuanto la Red Sísmica detecte actividad.</p>
       </div>
     `;
     return;
@@ -895,24 +884,6 @@ function setupEventListeners() {
         freqBadge.textContent = freq === 60 ? "1 hora" : `${freq} min`;
       }
     });
-  });
-
-  // Filtros de Lista
-  document.getElementById("btnFilterAll").addEventListener("click", function() {
-    AppState.filterOnlyRadius = false;
-    this.classList.add("active");
-    document.getElementById("btnFilterRadius").classList.remove("active");
-    renderizarListaSismos();
-    document.getElementById("quakeCountBadge").textContent = AppState.quakes.length;
-  });
-
-  document.getElementById("btnFilterRadius").addEventListener("click", function() {
-    AppState.filterOnlyRadius = true;
-    this.classList.add("active");
-    document.getElementById("btnFilterAll").classList.remove("active");
-    renderizarListaSismos();
-    const enRadio = AppState.quakes.filter(q => q.distancia <= AppState.config.radio_km);
-    document.getElementById("quakeCountBadge").textContent = enRadio.length;
   });
 
   // Botones de Acción

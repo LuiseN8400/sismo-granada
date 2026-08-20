@@ -3,7 +3,7 @@
  * ==============================================================================================
  */
 
-const CACHE_NAME = "sismogranada-v12";
+const CACHE_NAME = "sismogranada-v14";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
