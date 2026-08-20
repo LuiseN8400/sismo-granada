@@ -939,10 +939,10 @@ function setupEventListeners() {
 }
 
 // =============================================================================
-// GESTIÓN DE TEMA (MODO CLARO / MODO OSCURO)
+// GESTIÓN DE TEMA (MODO CLARO ESTÁNDAR / MODO OSCURO)
 // =============================================================================
 function initTheme() {
-  const saved = localStorage.getItem("sismo_theme") || "dark";
+  const saved = localStorage.getItem("sismo_theme") || "light";
   applyTheme(saved);
 }
 
@@ -953,10 +953,16 @@ function applyTheme(theme) {
     btn.textContent = theme === "light" ? "🌙" : "☀️";
     btn.title = theme === "light" ? "Cambiar a Modo Oscuro" : "Cambiar a Modo Claro";
   }
+
+  // Actualizar meta theme-color para la barra de estado de iOS Safari
+  const metaTheme = document.getElementById("metaThemeColor");
+  if (metaTheme) {
+    metaTheme.setAttribute("content", theme === "light" ? "#f2f2f7" : "#000000");
+  }
 }
 
 function toggleTheme() {
-  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  const current = document.documentElement.getAttribute("data-theme") || "light";
   const next = current === "light" ? "dark" : "light";
   applyTheme(next);
   localStorage.setItem("sismo_theme", next);

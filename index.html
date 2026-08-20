@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -7,9 +7,9 @@
   
   <!-- Configuración PWA e iOS Mobile Web App -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="SismoGranada">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#f2f2f7" id="metaThemeColor">
   <meta name="description" content="Monitor en tiempo real de terremotos en Granada y alrededores con alertas a WhatsApp y configuración en la nube">
   
   <link rel="manifest" href="manifest.json">
@@ -20,39 +20,43 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
-  <link rel="stylesheet" href="styles.css?v=20260820_10">
+  <link rel="stylesheet" href="styles.css?v=20260820_11">
 </head>
 <body>
 
   <!-- Toast Notification System -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- Encabezado iOS -->
+  <!-- Encabezado iOS Unificado (Título + Acciones + Tabs Lista/Mapa/Ajustes) -->
   <header class="app-header">
-    <div class="header-brand">
-      <div class="brand-icon">🌋</div>
-      <div class="brand-info">
-        <h1>SismoGranada</h1>
-        <p><span class="pulse-dot"></span> Red Sísmica IGN • En Vivo</p>
+    <div class="header-inner">
+      <div class="header-top">
+        <div class="header-brand">
+          <div class="brand-icon">🌋</div>
+          <div class="brand-info">
+            <h1>SismoGranada</h1>
+            <p><span class="pulse-dot"></span> Red Sísmica IGN • En Vivo</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="btnThemeToggle" title="Cambiar a Modo Oscuro / Claro" aria-label="Cambiar tema">🌙</button>
+          <button class="icon-btn" id="btnRefresh" title="Actualizar datos" aria-label="Actualizar datos">🔄</button>
+          <button class="icon-btn" id="btnOpenSettings" title="Ajustes de GitHub" aria-label="Ajustes de GitHub">⚙️</button>
+        </div>
       </div>
-    </div>
-    <div class="header-actions">
-      <button class="icon-btn" id="btnThemeToggle" title="Cambiar a Modo Claro / Oscuro" aria-label="Cambiar tema">☀️</button>
-      <button class="icon-btn" id="btnRefresh" title="Actualizar datos" aria-label="Actualizar datos">🔄</button>
-      <button class="icon-btn" id="btnOpenSettings" title="Ajustes de GitHub" aria-label="Ajustes de GitHub">⚙️</button>
+
+      <!-- Control Segmentado (Tabs) integrado en la barra superior -->
+      <div class="segmented-control-container">
+        <div class="segmented-control" role="tablist">
+          <button class="segment-btn active" data-tab="tab-list" role="tab">📋 Lista (<span id="quakeCountBadge">0</span>)</button>
+          <button class="segment-btn" data-tab="tab-map" role="tab">🗺️ Mapa</button>
+          <button class="segment-btn" data-tab="tab-config" role="tab">⚙️ Ajustes</button>
+        </div>
+      </div>
     </div>
   </header>
 
   <div class="app-container">
-
-    <!-- Control Segmentado (Tabs) -->
-    <div class="segmented-control-container">
-      <div class="segmented-control" role="tablist">
-        <button class="segment-btn active" data-tab="tab-list" role="tab">📋 Lista (<span id="quakeCountBadge">0</span>)</button>
-        <button class="segment-btn" data-tab="tab-map" role="tab">🗺️ Mapa</button>
-        <button class="segment-btn" data-tab="tab-config" role="tab">⚙️ Ajustes</button>
-      </div>
-    </div>
 
     <!-- Indicadores Clave (KPI Stats) -->
     <div class="stats-grid">
@@ -268,6 +272,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260820_10"></script>
+  <script src="app.js?v=20260820_11"></script>
 </body>
 </html>

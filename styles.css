@@ -5,44 +5,7 @@
 :root {
   --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Roboto, sans-serif;
   
-  /* Paleta iOS Dark Mode (Predeterminada) */
-  --bg-primary: #000000;
-  --bg-secondary: #121214;
-  --bg-tertiary: #1c1c1e;
-  --bg-card: rgba(28, 28, 30, 0.75);
-  --bg-card-hover: rgba(44, 44, 46, 0.85);
-  --bg-glass: rgba(20, 20, 22, 0.7);
-  --bg-input: #2c2c2e;
-  
-  --text-primary: #ffffff;
-  --text-secondary: #8e8e93;
-  --text-tertiary: #636366;
-  
-  --border-color: rgba(255, 255, 255, 0.1);
-  --border-focus: #0a84ff;
-  
-  --accent-blue: #0a84ff;
-  --accent-green: #30d158;
-  --accent-yellow: #ffd60a;
-  --accent-orange: #ff9f0a;
-  --accent-red: #ff453a;
-  --accent-purple: #bf5af2;
-  
-  --safe-top: env(safe-area-inset-top, 20px);
-  --safe-bottom: env(safe-area-inset-bottom, 20px);
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-pill: 9999px;
-  
-  --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --blur-glass: blur(20px);
-}
-
-/* ==========================================================================
-   TEMA CLARO (LIGHT MODE)
-   ========================================================================== */
-[data-theme="light"] {
+  /* Paleta iOS Light Mode (Predeterminada por Estándar) */
   --bg-primary: #f2f2f7;
   --bg-secondary: #ffffff;
   --bg-tertiary: #e5e5ea;
@@ -65,74 +28,97 @@
   --accent-red: #ff3b30;
   --accent-purple: #af52de;
   
+  --safe-top: env(safe-area-inset-top, 20px);
+  --safe-bottom: env(safe-area-inset-bottom, 20px);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 9999px;
+  
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --blur-glass: blur(20px);
 }
 
-[data-theme="light"] .segmented-control {
-  background: #e5e5ea;
+/* ==========================================================================
+   PALETA OSCURA (DARK MODE)
+   ========================================================================== */
+[data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #121214;
+  --bg-tertiary: #1c1c1e;
+  --bg-card: rgba(28, 28, 30, 0.75);
+  --bg-card-hover: rgba(44, 44, 46, 0.85);
+  --bg-glass: rgba(20, 20, 22, 0.7);
+  --bg-input: #2c2c2e;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #636366;
+  
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-focus: #0a84ff;
+  
+  --accent-blue: #0a84ff;
+  --accent-green: #30d158;
+  --accent-yellow: #ffd60a;
+  --accent-orange: #ff9f0a;
+  --accent-red: #ff453a;
+  --accent-purple: #bf5af2;
+  
+  --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-[data-theme="light"] .segment-btn.active {
-  background: #ffffff;
-  color: #1c1c1e;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+[data-theme="dark"] .segmented-control {
+  background: var(--bg-tertiary);
 }
 
-[data-theme="light"] .stat-card {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.06);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+[data-theme="dark"] .segment-btn.active {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-[data-theme="light"] .quake-item {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.06);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .quake-item {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-card);
 }
 
-[data-theme="light"] .quake-item:active {
-  background: #f2f2f7;
+[data-theme="dark"] .quake-place {
+  color: var(--text-primary);
 }
 
-[data-theme="light"] .quake-place {
-  color: #1c1c1e;
+[data-theme="dark"] .meta-chip {
+  background: var(--bg-input);
+  color: var(--text-secondary);
 }
 
-[data-theme="light"] .meta-chip {
-  background: #f2f2f7;
-  color: #636366;
+[data-theme="dark"] .modal-drawer {
+  background: var(--bg-secondary);
 }
 
-[data-theme="light"] .meta-chip.active {
-  background: var(--accent-blue) !important;
-  color: #ffffff !important;
+[data-theme="dark"] .form-input {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 
-[data-theme="light"] .modal-drawer {
-  background: #ffffff;
+[data-theme="dark"] .freq-btn {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
 }
 
-[data-theme="light"] .form-input {
-  background: #f2f2f7;
-  color: #1c1c1e;
-  border-color: rgba(0, 0, 0, 0.1);
+[data-theme="dark"] .leaflet-popup-content-wrapper {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-card) !important;
 }
 
-[data-theme="light"] .freq-btn {
-  background: #f2f2f7;
-  color: #636366;
-  border-color: rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="light"] .leaflet-popup-content-wrapper {
-  background: #ffffff !important;
-  color: #1c1c1e !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
-}
-
-[data-theme="light"] .leaflet-popup-tip {
-  background: #ffffff !important;
+[data-theme="dark"] .leaflet-popup-tip {
+  background: var(--bg-card) !important;
 }
 
 
@@ -166,10 +152,10 @@ body {
   width: 100%;
   max-width: 768px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 12px 16px 0 16px;
 }
 
-/* Encabezado iOS Glassmorphic */
+/* Encabezado iOS Glassmorphic Unificado (Título + Tabs Juntos) */
 .app-header {
   position: sticky;
   top: 0;
@@ -178,10 +164,23 @@ body {
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   border-bottom: 1px solid var(--border-color);
-  padding: calc(var(--safe-top) + 8px) 16px 12px 16px;
+  padding: calc(var(--safe-top) + 6px) 16px 10px 16px;
+  width: 100%;
+}
+
+.header-inner {
+  max-width: 768px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
 }
 
 .header-brand {
@@ -191,15 +190,15 @@ body {
 }
 
 .brand-icon {
-  font-size: 24px;
+  font-size: 22px;
   background: linear-gradient(135deg, #ff453a, #ff9f0a);
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(255, 69, 58, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 69, 58, 0.25);
 }
 
 .brand-info h1 {
@@ -253,6 +252,7 @@ body {
   cursor: pointer;
   font-size: 16px;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .icon-btn:active {
@@ -260,9 +260,11 @@ body {
   background: var(--bg-card-hover);
 }
 
-/* Control Segmentado iOS (Tabs) */
+/* Control Segmentado iOS (Tabs Integrado en Header) */
 .segmented-control-container {
-  padding: 12px 0;
+  width: 100%;
+  padding: 0;
+  margin: 0;
 }
 
 .segmented-control {
@@ -292,9 +294,9 @@ body {
 }
 
 .segment-btn.active {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: #ffffff;
+  color: #1c1c1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* KPI Stats Bar */
