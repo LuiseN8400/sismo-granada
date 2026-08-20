@@ -136,7 +136,6 @@ html, body {
   color: var(--text-primary);
   min-height: 100vh;
   min-height: -webkit-fill-available;
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -144,28 +143,22 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(var(--safe-bottom) + 70px);
 }
 
-/* Contenedor Principal */
-.app-container {
-  width: 100%;
-  max-width: 768px;
-  margin: 0 auto;
-  padding: 12px 16px 0 16px;
-}
-
-/* Encabezado iOS Glassmorphic Unificado (Título + Tabs Juntos) */
+/* Encabezado iOS Glassmorphic Unificado 100% FIJO ARRIBA */
 .app-header {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 1000;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 9999;
   background: var(--bg-glass);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   border-bottom: 1px solid var(--border-color);
-  padding: calc(var(--safe-top) + 6px) 16px 10px 16px;
-  width: 100%;
+  padding: calc(var(--safe-top) + 6px) 16px 8px 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .header-inner {
@@ -173,7 +166,7 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .header-top {
@@ -181,6 +174,14 @@ body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+}
+
+/* Contenedor Principal (Con padding-top que respeta la cabecera fija) */
+.app-container {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+  padding: calc(var(--safe-top) + 116px) 16px calc(var(--safe-bottom) + 80px) 16px;
 }
 
 .header-brand {
